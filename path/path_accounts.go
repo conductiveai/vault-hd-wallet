@@ -1,6 +1,7 @@
 package path
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -270,7 +271,14 @@ func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Reques
 		tx = types.NewContractCreation(nonce, amount, gasLimit, gasPrice, txDataToSign)
 	} else {
 		addressTo := common.HexToAddress(addressToStr)
-		tx = types.NewTransaction(nonce, addressTo, amount, gasLimit, gasPrice, txDataToSign)
+		tx = types.NewTx(&types.LegacyTx{
+			Nonce:    nonce,
+			GasPrice: gasPrice,
+			Gas:      gasLimit,
+			To:       &addressTo,
+			Value:    amount,
+			Data:     txDataToSign,
+		})
 	}
 
 	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
@@ -278,9 +286,9 @@ func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Reques
 		return nil, err
 	}
 
-	ts := types.Transactions{signedTx}
-	rawTxBytes := ts.GetRlp(0)
-	rawTxHex := hex.EncodeToString(rawTxBytes)
+	rawTxBytes := new(bytes.Buffer)
+	signedTx.EncodeRLP(rawTxBytes)
+	rawTxHex := hex.EncodeToString(rawTxBytes.Bytes())
 
 	return &logical.Response{
 		Data: map[string]interface{}{

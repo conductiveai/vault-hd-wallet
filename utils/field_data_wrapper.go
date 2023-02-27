@@ -22,8 +22,6 @@ import (
 	"math/big"
 
 	"github.com/hashicorp/vault/sdk/framework"
-
-	"github.com/bsostech/vault-blockchain/pkg/utils"
 )
 
 // FieldDataWrapper used to processing data from framework.FieldData
@@ -149,7 +147,7 @@ func (f *FieldDataWrapper) GetBigInt(key string, defaultValue *big.Int) *big.Int
 	if !ok {
 		return defaultValue
 	}
-	return utils.ValidNumber(value)
+	return ValidNumber(value)
 }
 
 // MustGetBigInt get big.Int value from framework.FieldData with specific key,
@@ -163,7 +161,7 @@ func (f *FieldDataWrapper) MustGetBigInt(key string) (*big.Int, error) {
 	if !ok {
 		return nil, f.errorTypeMismatch(key)
 	}
-	return utils.ValidNumber(value), nil
+	return ValidNumber(value), nil
 }
 
 // GetUint64 get unit64 value from framework.FieldData with specific key,
