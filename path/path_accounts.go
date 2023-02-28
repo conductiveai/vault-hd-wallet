@@ -1,7 +1,6 @@
 package path
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -104,6 +103,10 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 				"name": {
 					Type: framework.TypeString,
 				},
+				"type": {
+					Type:        framework.TypeString,
+					Description: "The transaction type (0 - legacy or 2 - dynamic fee).",
+				},
 				"address_to": {
 					Type:        framework.TypeString,
 					Description: "The address of the account to send tx to.",
@@ -128,6 +131,16 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 				"gas_price": {
 					Type:        framework.TypeString,
 					Description: "The gas price for the transaction in wei.",
+					Default:     "0",
+				},
+				"max_fee_per_gas": {
+					Type:        framework.TypeString,
+					Description: "The max fee per gas for the transaction in wei.",
+					Default:     "0",
+				},
+				"max_priority_fee_per_gas": {
+					Type:        framework.TypeString,
+					Description: "The priority fee per gas for the transaction in wei.",
 					Default:     "0",
 				},
 				"chainID": {
@@ -217,6 +230,11 @@ func (b *PluginBackend) readDerivationPath(ctx context.Context, req *logical.Req
 func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	dataWrapper := utils.NewFieldDataWrapper(data)
 
+	txType, err := dataWrapper.MustGetUint64("type")
+	if err != nil {
+		return nil, err
+	}
+
 	inputData := dataWrapper.GetString("data", "")
 
 	addressToStr := dataWrapper.GetString("address_to", "")
@@ -232,11 +250,6 @@ func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Reques
 	}
 
 	gasLimit, err := dataWrapper.MustGetUint64("gas_limit")
-	if err != nil {
-		return nil, err
-	}
-
-	gasPrice, err := dataWrapper.MustGetBigInt("gas_price")
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +270,6 @@ func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Reques
 	}
 	defer utils.ZeroKey(privateKey)
 
-	var tx *types.Transaction
 	var txDataToSign []byte
 
 	if inputData != "" {
@@ -267,28 +279,71 @@ func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Reques
 		}
 	}
 
-	if addressToStr == "" {
-		tx = types.NewContractCreation(nonce, amount, gasLimit, gasPrice, txDataToSign)
-	} else {
-		addressTo := common.HexToAddress(addressToStr)
-		tx = types.NewTx(&types.LegacyTx{
-			Nonce:    nonce,
-			GasPrice: gasPrice,
-			Gas:      gasLimit,
-			To:       &addressTo,
-			Value:    amount,
-			Data:     txDataToSign,
-		})
+	var addressTo *common.Address = nil
+	if addressToStr != "" {
+		var addressTo_ common.Address = common.HexToAddress(addressToStr)
+		addressTo = &addressTo_
 	}
 
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	var signedTx *types.Transaction
+	switch txType {
+	case types.LegacyTxType:
+		gasPrice, err := dataWrapper.MustGetBigInt("gas_price")
+		if err != nil {
+			return nil, err
+		}
+
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    	nonce,
+			GasPrice: 	gasPrice,
+			Gas:      	gasLimit,
+			To:       	addressTo,
+			Value:    	amount,
+			Data:     	txDataToSign,
+		})
+
+		signedTx_, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+		if err != nil {
+			return nil, err
+		}
+		signedTx = signedTx_
+
+	case types.DynamicFeeTxType:
+		gasFeeCap, err := dataWrapper.MustGetBigInt("max_fee_per_gas")
+		if err != nil {
+			return nil, err
+		}
+	
+		gasTipCap, err := dataWrapper.MustGetBigInt("max_priority_fee_per_gas")
+		if err != nil {
+			return nil, err
+		}
+
+		al := types.AccessList{}
+		tx := types.NewTx(&types.DynamicFeeTx{
+			ChainID:    chainID,
+			Nonce: 		nonce,
+			Gas:      	gasLimit,
+			GasFeeCap:	gasFeeCap,
+			GasTipCap:	gasTipCap,
+			To:       	addressTo,
+			Value:    	amount,
+			Data:     	txDataToSign,
+			AccessList: al,
+		})
+
+		signedTx_, err := types.SignTx(tx, types.NewLondonSigner(chainID), privateKey)
+		if err != nil {
+			return nil, err
+		}
+		signedTx = signedTx_
+	}
+
+	rawTxBytes, err := signedTx.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-
-	rawTxBytes := new(bytes.Buffer)
-	signedTx.EncodeRLP(rawTxBytes)
-	rawTxHex := hex.EncodeToString(rawTxBytes.Bytes())
+	rawTxHex := hex.EncodeToString(rawTxBytes)
 
 	return &logical.Response{
 		Data: map[string]interface{}{
