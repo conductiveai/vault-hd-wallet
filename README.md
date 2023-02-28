@@ -128,15 +128,34 @@ Parameters
 
 Code samples
 
+Legacy transaction:
 ```bash
 curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}/sign-tx" \
         --header "Authorization: Bearer ${token}" \
         --data-raw "{
+            \"type\": \"0\",
             \"address_to\": \"\",
             \"amount\": \"100000\",
             \"nonce\": \"2\",
             \"gas_limit\": \"3000000\",
             \"gas_price\": \"1000000000\",
+            \"chainID\": \"4\",
+            \"data\": \"\"
+        }"
+```
+
+Dynamic fee transaction:
+```bash
+curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}/sign-tx" \
+        --header "Authorization: Bearer ${token}" \
+        --data-raw "{
+            \"type\": \"2\",
+            \"address_to\": \"\",
+            \"amount\": \"100000\",
+            \"nonce\": \"2\",
+            \"gas_limit\": \"3000000\",
+            \"max_fee_per_gas\": \"10000\",
+            \"max_priority_fee_per_gas\": \"200000\",
             \"chainID\": \"4\",
             \"data\": \"\"
         }"
