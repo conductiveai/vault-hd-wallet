@@ -51,14 +51,13 @@ POST /hdwallet/wallet
 Parameters
 | Name       | Type   | In   | Description                                                                  |
 | ---------- | ------ | ---- | ---------------------------------------------------------------------------- |
-| name       | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info. |
 | mnemonic   | string | body | The mnemonic could be imported to restore the wallet.                        |
 | passphrase | string | body | The mnemonic password to protect the wallet.                                 |
 
 Code samples
 
 ``` bash
-curl --request POST "http://${ip}:${port}/v1/hdwallet/wallet/${name}" \
+curl --request POST "http://${ip}:${port}/v1/hdwallet/wallet" \
     --header "Authorization: Bearer ${token}" \
     --data-raw '{
         "mnemonic": "move mask pilot rather lion prevent reform mixture valve appear drop soap section pass jelly capital limb produce enough smooth nature cricket elevator jeans",
@@ -73,7 +72,7 @@ Get wallet seed and master key. This function should be for testing ONLY.
 Code samples
 
 ```bash
-curl --request GET "http://${ip}:${port}/v1/hdwallet/wallet/${name}" \
+curl --request GET "http://${ip}:${port}/v1/hdwallet/wallet/${rootAddress}" \
     --header "Authorization: Bearer ${token}"
 ```
 
@@ -84,7 +83,7 @@ The account address is derived from sequentially next derivation path.
 Parameters
 | Name           | Type   | In   | Description                                                                   |
 | -------------- | ------ | ---- | ----------------------------------------------------------------------------- |
-| walletName     | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info.  |
+| rootAddress    | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info.  |
 
 Code samples
 
@@ -92,7 +91,7 @@ Code samples
 curl --request POST "http://${ip}:${port}/v1/hdwallet/account" \
     --header "Authorization: Bearer ${token}" \
     --data-raw '{
-        "walletName": "${wallet_name}",
+        "rootAddress": "0x0cC8897182C20c80fa417E8E6E59c4C7bd1a41eb",
         "derivationPath": "m/44'\''/60'\''/0'\''/0/0"
     }'
 ```
@@ -104,7 +103,7 @@ The account address is derived from sequentially next derivation path.
 Parameters
 | Name           | Type   | In   | Description                                                                   |
 | -------------- | ------ | ---- | ----------------------------------------------------------------------------- |
-| walletName     | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info.  |
+| rootAddress    | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info.  |
 | derivationPath | string | body | **Rquired.** The BIP-44 path for generating the account address.              |
 
 Code samples
@@ -113,7 +112,7 @@ Code samples
 curl --request POST "http://${ip}:${port}/v1/hdwallet/account" \
     --header "Authorization: Bearer ${token}" \
     --data-raw '{
-        "walletName": "${wallet_name}",
+        "rootAddress": "0x0cC8897182C20c80fa417E8E6E59c4C7bd1a41eb",
         "derivationPath": "m/44'\''/60'\''/0'\''/0/0"
     }'
 ```

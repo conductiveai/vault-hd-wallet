@@ -75,8 +75,8 @@ func NewSeedFromMnemonic(mnemonic string, passphrase string) ([]byte, error) {
 }
 
 // ReadWallet returns wallet JSON (for DEV only)
-func ReadWallet(walletName string, ctx context.Context, req *logical.Request) (*Wallet, error) {
-	walletPath := fmt.Sprintf("wallet/%s", walletName)
+func ReadWallet(rootAddress string, ctx context.Context, req *logical.Request) (*Wallet, error) {
+	walletPath := fmt.Sprintf("wallet/%s", rootAddress)
 	entry, err := req.Storage.Get(ctx, walletPath)
 	if err != nil {
 		return nil, err
@@ -133,14 +133,14 @@ func (w *Wallet) Derive(derivationPath string) (*Account, error) {
 }
 
 // Derive next account by incrementing derivation index
-func (w *Wallet) DeriveNext(walletName string, ctx context.Context, req *logical.Request) (*Account, error) {
+func (w *Wallet) DeriveNext(rootAddress string, ctx context.Context, req *logical.Request) (*Account, error) {
 	account, err := w.Derive(fmt.Sprintf("m/44'/60'/%d'/0/0", w.NextDerivationIndex))
 	if err != nil {
 		return nil, err
 	}
 
 	w.NextDerivationIndex += 1
-	entry, err := logical.StorageEntryJSON(fmt.Sprintf("wallet/%s", walletName), w)
+	entry, err := logical.StorageEntryJSON(fmt.Sprintf("wallet/%s", rootAddress), w)
 	if err != nil {
 		return nil, err
 	}

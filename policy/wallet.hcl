@@ -1,3 +1,7 @@
+path "hdwallet/wallet" {
+    capabilities = ["create", "read"]
+}
+
 path "hdwallet/wallet/*" {
     capabilities = ["create", "read"]
 }

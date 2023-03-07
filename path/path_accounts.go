@@ -24,7 +24,7 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 			HelpDescription: `create new account with bip-44 path`,
 			ExistenceCheck:  utils.PathExistenceCheck,
 			Fields: map[string]*framework.FieldSchema{
-				"walletName": {
+				"rootAddress": {
 					Type: framework.TypeString,
 				},
 			},
@@ -41,7 +41,7 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 			HelpDescription: `restore an existing account with bip-44 path`,
 			ExistenceCheck:  utils.PathExistenceCheck,
 			Fields: map[string]*framework.FieldSchema{
-				"walletName": {
+				"rootAddress": {
 					Type: framework.TypeString,
 				},
 				"derivationPath": {
@@ -163,17 +163,17 @@ func (b *PluginBackend) newAccount(ctx context.Context, req *logical.Request, da
 
 	dataWrapper := utils.NewFieldDataWrapper(data)
 
-	walletName, err := dataWrapper.MustGetString("walletName")
+	rootAddress, err := dataWrapper.MustGetString("rootAddress")
 	if err != nil {
 		return nil, err
 	}
 
-	wallet, err := model.ReadWallet(walletName, ctx, req)
+	wallet, err := model.ReadWallet(rootAddress, ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	account, err := wallet.DeriveNext(walletName, ctx, req)
+	account, err := wallet.DeriveNext(rootAddress, ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (b *PluginBackend) newAccount(ctx context.Context, req *logical.Request, da
 func (b *PluginBackend) restoreAccount(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	dataWrapper := utils.NewFieldDataWrapper(data)
 
-	walletName, err := dataWrapper.MustGetString("walletName")
+	rootAddress, err := dataWrapper.MustGetString("rootAddress")
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (b *PluginBackend) restoreAccount(ctx context.Context, req *logical.Request
 		return nil, utils.ErrorHandler("derivationPath", err)
 	}
 
-	wallet, err := model.ReadWallet(walletName, ctx, req)
+	wallet, err := model.ReadWallet(rootAddress, ctx, req)
 	if err != nil {
 		return nil, err
 	}
