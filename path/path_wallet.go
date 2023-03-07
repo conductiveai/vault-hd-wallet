@@ -3,6 +3,7 @@ package path
 import (
 	"context"
 	"errors"
+	"fmt"
 	"vault-hd-wallet/model"
 	"vault-hd-wallet/utils"
 
@@ -15,11 +16,14 @@ import (
 func WalletPaths(b *PluginBackend) []*framework.Path {
 	return []*framework.Path{
 		{
-			Pattern:         "wallet/?",
+			Pattern:         "wallet/" + framework.GenericNameRegex("name"),
 			HelpSynopsis:    "New wallet by generating or importing mnemonic",
 			HelpDescription: `New wallet by generating or importing mnemonic`,
 			ExistenceCheck:  utils.PathExistenceCheck,
 			Fields: map[string]*framework.FieldSchema{
+				"name": {
+					Type: framework.TypeString,
+				},
 				"mnemonic": {
 					Type:    framework.TypeString,
 					Default: "",
@@ -45,6 +49,8 @@ func WalletPaths(b *PluginBackend) []*framework.Path {
 }
 
 func (b *PluginBackend) createWallet(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	walletName := data.Get("name").(string)
+
 	mnemonic, ok := data.Get("mnemonic").(string)
 	if !ok {
 		return nil, errors.New("mnemonic is not a string")
@@ -72,7 +78,7 @@ func (b *PluginBackend) createWallet(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	entry, err := logical.StorageEntryJSON(req.Path, wallet)
+	entry, err := logical.StorageEntryJSON(fmt.Sprintf("wallet/%s", walletName), wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +97,9 @@ func (b *PluginBackend) createWallet(ctx context.Context, req *logical.Request, 
 }
 
 func (b *PluginBackend) readWallet(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	walletName := data.Get("name").(string)
 
-	wallet, err := model.ReadWallet(ctx, req)
+	wallet, err := model.ReadWallet(walletName, ctx, req)
 	if err != nil {
 		return nil, err
 	}

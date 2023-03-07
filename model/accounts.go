@@ -3,7 +3,7 @@ package model
 import (
 	"context"
 	"errors"
-	"path"
+	"fmt"
 
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -17,16 +17,15 @@ type Account struct {
 }
 
 // ReadAccount returns the account JSON
-func ReadAccount(ctx context.Context, req *logical.Request) (*Account, error) {
-
-	accountPath := path.Dir(req.Path)
-
+func ReadAccount(accountAddress string, ctx context.Context, req *logical.Request) (*Account, error) {
+	accountPath := fmt.Sprintf("account/%s", accountAddress)
 	entry, err := req.Storage.Get(ctx, accountPath)
 	if err != nil {
 		return nil, err
 	}
+
 	if entry == nil {
-		return nil, nil
+		return nil, fmt.Errorf("account does not exist at %v", accountPath)
 	}
 
 	var account *Account

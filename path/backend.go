@@ -1,6 +1,8 @@
 package path
 
 import (
+	"sync"
+
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -16,7 +18,7 @@ func Backend(conf *logical.BackendConfig) (*PluginBackend, error) {
 		),
 		PathsSpecial: &logical.Paths{
 			SealWrapStorage: []string{
-				"accounts/",
+				"account/",
 				"wallet/",
 			},
 		},
@@ -29,4 +31,6 @@ func Backend(conf *logical.BackendConfig) (*PluginBackend, error) {
 // PluginBackend implements the Backend for this plugin
 type PluginBackend struct {
 	*framework.Backend
+
+	derivationPathLock sync.Mutex
 }

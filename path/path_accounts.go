@@ -13,19 +13,35 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
 )
 
 // AccountPaths aa
 func AccountPaths(b *PluginBackend) []*framework.Path {
 	return []*framework.Path{
 		{
-			Pattern:         "accounts/" + framework.GenericNameRegex("name"),
-			HelpSynopsis:    "create account with bip-44 path",
-			HelpDescription: `create account with bip-44 path`,
+			Pattern:         "account",
+			HelpSynopsis:    "create new account with bip-44 path",
+			HelpDescription: `create new account with bip-44 path`,
 			ExistenceCheck:  utils.PathExistenceCheck,
 			Fields: map[string]*framework.FieldSchema{
-				"name": {
+				"walletName": {
+					Type: framework.TypeString,
+				},
+			},
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.CreateOperation: &framework.PathOperation{
+					Callback: b.newAccount,
+					Summary:  "create a new account",
+				},
+			},
+		},
+		{
+			Pattern:         "account/restore",
+			HelpSynopsis:    "restore an existing account with bip-44 path",
+			HelpDescription: `restore an existing account with bip-44 path`,
+			ExistenceCheck:  utils.PathExistenceCheck,
+			Fields: map[string]*framework.FieldSchema{
+				"walletName": {
 					Type: framework.TypeString,
 				},
 				"derivationPath": {
@@ -34,35 +50,18 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
-					Callback: b.createAccount,
-					Summary:  "create a account",
+					Callback: b.restoreAccount,
+					Summary:  "restore an existing account",
 				},
 			},
 		},
 		{
-			Pattern:         "accounts/" + framework.GenericNameRegex("name") + "/address",
-			HelpSynopsis:    "get account address",
-			HelpDescription: `get account address`,
-			ExistenceCheck:  utils.PathExistenceCheck,
-			Fields: map[string]*framework.FieldSchema{
-				"name": {
-					Type: framework.TypeString,
-				},
-			},
-			Operations: map[logical.Operation]framework.OperationHandler{
-				logical.ReadOperation: &framework.PathOperation{
-					Callback: b.readAddress,
-					Summary:  "get address from an account",
-				},
-			},
-		},
-		{
-			Pattern:         "accounts/" + framework.GenericNameRegex("name") + "/path",
+			Pattern:         "account/" + framework.GenericNameRegex("address") + "/path",
 			HelpSynopsis:    "get account derivation path",
 			HelpDescription: `get account derivation path`,
 			ExistenceCheck:  utils.PathExistenceCheck,
 			Fields: map[string]*framework.FieldSchema{
-				"name": {
+				"address": {
 					Type: framework.TypeString,
 				},
 			},
@@ -74,12 +73,12 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 			},
 		},
 		{
-			Pattern:         "accounts/" + framework.GenericNameRegex("name") + "/sign",
+			Pattern:         "account/" + framework.GenericNameRegex("address") + "/sign",
 			HelpSynopsis:    "sign data",
 			HelpDescription: `sign data`,
 			ExistenceCheck:  utils.PathExistenceCheck,
 			Fields: map[string]*framework.FieldSchema{
-				"name": {
+				"address": {
 					Type: framework.TypeString,
 				},
 				"data": {
@@ -90,17 +89,17 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
 					Callback: b.signData,
-					Summary:  "read derivation path from an account",
+					Summary:  "sign arbitrary data",
 				},
 			},
 		},
 		{
-			Pattern:         "accounts/" + framework.GenericNameRegex("name") + "/sign-tx",
+			Pattern:         "account/" + framework.GenericNameRegex("address") + "/sign-tx",
 			HelpSynopsis:    "sign a transaction",
 			HelpDescription: `sign a transaction`,
 			ExistenceCheck:  utils.PathExistenceCheck,
 			Fields: map[string]*framework.FieldSchema{
-				"name": {
+				"address": {
 					Type: framework.TypeString,
 				},
 				"type": {
@@ -158,31 +157,29 @@ func AccountPaths(b *PluginBackend) []*framework.Path {
 	}
 }
 
-func (b *PluginBackend) createAccount(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *PluginBackend) newAccount(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	b.derivationPathLock.Lock()
+	defer b.derivationPathLock.Unlock()
+
 	dataWrapper := utils.NewFieldDataWrapper(data)
 
-	derivationPathField, err := dataWrapper.MustGetString("derivationPath")
-	if err != nil {
-		return nil, utils.ErrorHandler("derivationPathField", err)
-	}
-
-	wallet, err := model.ReadWallet(ctx, req)
+	walletName, err := dataWrapper.MustGetString("walletName")
 	if err != nil {
 		return nil, err
 	}
 
-	derivationPath, err := hdwallet.ParseDerivationPath(derivationPathField)
+	wallet, err := model.ReadWallet(walletName, ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	account, err := wallet.Derive(derivationPath)
+	account, err := wallet.DeriveNext(walletName, ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	// save account
-	entry, err := logical.StorageEntryJSON(req.Path, account)
+	accountPath := fmt.Sprintf("account/%s", account.Address)
+	entry, err := logical.StorageEntryJSON(accountPath, account)
 	if err != nil {
 		return nil, err
 	}
@@ -199,9 +196,30 @@ func (b *PluginBackend) createAccount(ctx context.Context, req *logical.Request,
 	}, nil
 }
 
-func (b *PluginBackend) readAddress(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *PluginBackend) restoreAccount(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	dataWrapper := utils.NewFieldDataWrapper(data)
 
-	account, err := model.ReadAccount(ctx, req)
+	walletName, err := dataWrapper.MustGetString("walletName")
+	if err != nil {
+		return nil, err
+	}
+
+	derivationPath, err := dataWrapper.MustGetString("derivationPath")
+	if err != nil {
+		return nil, utils.ErrorHandler("derivationPath", err)
+	}
+
+	wallet, err := model.ReadWallet(walletName, ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := wallet.Derive(derivationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err = model.ReadAccount(account.Address, ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -214,8 +232,14 @@ func (b *PluginBackend) readAddress(ctx context.Context, req *logical.Request, d
 }
 
 func (b *PluginBackend) readDerivationPath(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	dataWrapper := utils.NewFieldDataWrapper(data)
 
-	account, err := model.ReadAccount(ctx, req)
+	address, err := dataWrapper.MustGetString("address")
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := model.ReadAccount(address, ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +253,16 @@ func (b *PluginBackend) readDerivationPath(ctx context.Context, req *logical.Req
 
 func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	dataWrapper := utils.NewFieldDataWrapper(data)
+
+	address, err := dataWrapper.MustGetString("address")
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := model.ReadAccount(address, ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
 	txType, err := dataWrapper.MustGetUint64("type")
 	if err != nil {
@@ -257,11 +291,6 @@ func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Reques
 	chainID, err := dataWrapper.MustGetBigInt("chainID")
 	if err != nil {
 		return nil, err
-	}
-
-	account, err := model.ReadAccount(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("account %s is not existed", req.Path)
 	}
 
 	privateKey, err := crypto.HexToECDSA(account.PrivateKey)
@@ -358,12 +387,17 @@ func (b *PluginBackend) signTransaction(ctx context.Context, req *logical.Reques
 func (b *PluginBackend) signData(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	dataWrapper := utils.NewFieldDataWrapper(data)
 
-	inputData, err := dataWrapper.MustGetString("data")
+	address, err := dataWrapper.MustGetString("address")
 	if err != nil {
 		return nil, err
 	}
 
-	account, err := model.ReadAccount(ctx, req)
+	account, err := model.ReadAccount(address, ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	inputData, err := dataWrapper.MustGetString("data")
 	if err != nil {
 		return nil, err
 	}

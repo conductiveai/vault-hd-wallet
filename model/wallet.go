@@ -15,12 +15,14 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/tyler-smith/go-bip39"
+	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
 )
 
 // Wallet stores the seed of wallet
 type Wallet struct {
-	MasterKey string `json:"masterKey"`
-	Seed      string `json:"seed"`
+	MasterKey string 		`json:"masterKey"`
+	Seed string 			`json:"seed"`
+	NextDerivationIndex int	`json:"nextDerivationIndex"`
 }
 
 // NewWalletFromMnemonic Generate wallet from mnemonic
@@ -57,8 +59,9 @@ func newWallet(seed []byte) (*Wallet, error) {
 	seedHexEncoded := hex.EncodeToString(seed)
 
 	return &Wallet{
-		MasterKey: masterKeyStr,
-		Seed:      seedHexEncoded,
+		MasterKey: 		 	 masterKeyStr,
+		Seed:      		 	 seedHexEncoded,
+		NextDerivationIndex: 0,
 	}, nil
 }
 
@@ -72,31 +75,32 @@ func NewSeedFromMnemonic(mnemonic string, passphrase string) ([]byte, error) {
 }
 
 // ReadWallet returns wallet JSON (for DEV only)
-func ReadWallet(ctx context.Context, req *logical.Request) (*Wallet, error) {
-
-	walletPath := "wallet"
-
+func ReadWallet(walletName string, ctx context.Context, req *logical.Request) (*Wallet, error) {
+	walletPath := fmt.Sprintf("wallet/%s", walletName)
 	entry, err := req.Storage.Get(ctx, walletPath)
 	if err != nil {
 		return nil, err
 	}
 
 	if entry == nil {
-		return nil, fmt.Errorf("entry not existed at %v", walletPath)
+		return nil, fmt.Errorf("wallet does not exist at %v", walletPath)
 	}
 
 	var wallet *Wallet
 	err = entry.DecodeJSON(&wallet)
 	if err != nil {
 		return nil, errors.New("Fail to decode wallet to JSON format")
-
 	}
 
 	return wallet, nil
 }
 
 // Derive acctount from derivation path
-func (w *Wallet) Derive(path accounts.DerivationPath) (*Account, error) {
+func (w *Wallet) Derive(derivationPath string) (*Account, error) {
+	path, err := hdwallet.ParseDerivationPath(derivationPath)
+	if err != nil {
+		return nil, err
+	}
 
 	address, err := w.deriveAddress(path)
 	addressStr := address.String()
@@ -123,6 +127,27 @@ func (w *Wallet) Derive(path accounts.DerivationPath) (*Account, error) {
 		URL:        URLStr,
 		PrivateKey: pritvateKeyStr,
 		PublicKey:  publicKeyStr,
+	}
+
+	return account, nil
+}
+
+// Derive next account by incrementing derivation index
+func (w *Wallet) DeriveNext(walletName string, ctx context.Context, req *logical.Request) (*Account, error) {
+	account, err := w.Derive(fmt.Sprintf("m/44'/60'/%d'/0/0", w.NextDerivationIndex))
+	if err != nil {
+		return nil, err
+	}
+
+	w.NextDerivationIndex += 1
+	entry, err := logical.StorageEntryJSON(fmt.Sprintf("wallet/%s", walletName), w)
+	if err != nil {
+		return nil, err
+	}
+
+	err = req.Storage.Put(ctx, entry)
+	if err != nil {
+		return nil, err
 	}
 
 	return account, nil

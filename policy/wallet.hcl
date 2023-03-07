@@ -1,7 +1,11 @@
-path "hdwallet/wallet" {
-  capabilities = ["create", "read"]
+path "hdwallet/wallet/*" {
+    capabilities = ["create", "read"]
 }
 
-path "hdwallet/accounts/*"{
+path "hdwallet/account"{
+    capabilities = ["create", "read"]
+}
+
+path "hdwallet/account/*"{
     capabilities = ["create", "read"]
 }

@@ -1,11 +1,11 @@
-path "hdwallet/accounts/{{identity.entity.name}}/address" {
+path "hdwallet/account/{{identity.entity.name}}/path" {
     capabilities = ["read"]
 }
 
-path "hdwallet/accounts/{{identity.entity.name}}/sign-tx"{
+path "hdwallet/account/{{identity.entity.name}}/sign-tx"{
     capabilities = ["create"]
 }
 
-path "hdwallet/accounts/{{identity.entity.name}}/sign"{
+path "hdwallet/account/{{identity.entity.name}}/sign"{
     capabilities = ["create"]
 }
