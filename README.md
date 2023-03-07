@@ -49,15 +49,16 @@ POST /hdwallet/wallet
 ```
 
 Parameters
-| Name       | Type   | In   | Description                                           |
-| ---------- | ------ | ---- | ----------------------------------------------------- |
-| mnemonic   | string | body | The mnemonic could be imported to restore the wallet. |
-| passphrase | string | body | The mnemonic password to protect the wallet.          |
+| Name       | Type   | In   | Description                                                                  |
+| ---------- | ------ | ---- | ---------------------------------------------------------------------------- |
+| name       | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info. |
+| mnemonic   | string | body | The mnemonic could be imported to restore the wallet.                        |
+| passphrase | string | body | The mnemonic password to protect the wallet.                                 |
 
 Code samples
 
 ``` bash
-curl --request POST "http://${ip}:${port}/v1/hdwallet/wallet" \
+curl --request POST "http://${ip}:${port}/v1/hdwallet/wallet/${name}" \
     --header "Authorization: Bearer ${token}" \
     --data-raw '{
         "mnemonic": "move mask pilot rather lion prevent reform mixture valve appear drop soap section pass jelly capital limb produce enough smooth nature cricket elevator jeans",
@@ -72,41 +73,62 @@ Get wallet seed and master key. This function should be for testing ONLY.
 Code samples
 
 ```bash
-curl --request GET "http://${ip}:${port}/v1/hdwallet/wallet" \
+curl --request GET "http://${ip}:${port}/v1/hdwallet/wallet/${name}" \
     --header "Authorization: Bearer ${token}"
 ```
 
-### Create an account
+### Create a new account
 
-The account address is derived from derivation path.
+The account address is derived from sequentially next derivation path.
 
 Parameters
 | Name           | Type   | In   | Description                                                                   |
 | -------------- | ------ | ---- | ----------------------------------------------------------------------------- |
-| name           | string | url  | **Rquired.** The path of secrets engines where plugin store the account info. |
+| walletName     | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info.  |
+
+Code samples
+
+```bash
+curl --request POST "http://${ip}:${port}/v1/hdwallet/account" \
+    --header "Authorization: Bearer ${token}" \
+    --data-raw '{
+        "walletName": "${wallet_name}",
+        "derivationPath": "m/44'\''/60'\''/0'\''/0/0"
+    }'
+```
+
+### Restore an existing account
+
+The account address is derived from sequentially next derivation path.
+
+Parameters
+| Name           | Type   | In   | Description                                                                   |
+| -------------- | ------ | ---- | ----------------------------------------------------------------------------- |
+| walletName     | string | url  | **Rquired.** The path of secrets engines where plugin store the wallet info.  |
 | derivationPath | string | body | **Rquired.** The BIP-44 path for generating the account address.              |
 
 Code samples
 
 ```bash
-curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}" \
+curl --request POST "http://${ip}:${port}/v1/hdwallet/account" \
     --header "Authorization: Bearer ${token}" \
     --data-raw '{
+        "walletName": "${wallet_name}",
         "derivationPath": "m/44'\''/60'\''/0'\''/0/0"
     }'
 ```
 
-### Get account address
+### Get account derivation path
 
 Parameters
-| Name | Type   | In  | Description                                                                   |
-| ---- | ------ | --- | ----------------------------------------------------------------------------- |
-| name | string | url | **Rquired.** The path of secrets engines where plugin store the account info. |
+| Name    | Type   | In  | Description                                                                   |
+| ------- | ------ | --- | ----------------------------------------------------------------------------- |
+| address | string | url | **Rquired.** The path of secrets engines where plugin store the account info. |
 
 Code samples
 
 ```bash
-curl --request GET "http://${ip}:${port}/v1/hdwallet/accounts/${name}/address" \
+curl --request GET "http://${ip}:${port}/v1/hdwallet/account/${address}/path" \
     --header "Authorization: Bearer ${token}"
 ```
 
@@ -115,22 +137,25 @@ curl --request GET "http://${ip}:${port}/v1/hdwallet/accounts/${name}/address" \
 To learn signing transaction and its parameters, read [this document](https://web3js.readthedocs.io/en/v1.2.0/web3-eth.html#signtransaction)
 
 Parameters
-| Name       | Type   | In   | Description                                                                                 |
-| ---------- | ------ | ---- | ------------------------------------------------------------------------------------------- |
-| name       | string | url  | **Rquired.** The path of secrets engines where plugin store the account info.               |
-| address_to | string | body | The destination address for transaction. Leave empty if it is contract creation transaction |
-| amount     | string | body | **Rquired.** The ether send to the destination address (in wei)                             |
-| nonce      | string | body | **Rquired.** The transaction count of this account                                          |
-| gas_limit  | string | body | **Rquired.** The estimated gas that transaction may consume                                 |
-| gas_price  | string | body | **Rquired.** The price of gas (in wei)                                                      |
-| chainID    | string | body | **Rquired.** The ID of etheruem network                                                     |
-| data       | string | body | The bytecode of contract creation or function call. '0x' prefix is required.                |
+| Name                     | Type   | In   | Description                                                                                 |
+| ------------------------ | ------ | ---- | ------------------------------------------------------------------------------------------- |
+| address                  | string | url  | **Rquired.** The path of secrets engines where plugin store the account info.               |
+| type                     | string | body  | **Rquired.** Transaction type.                                                             |
+| address_to               | string | body | The destination address for transaction. Leave empty if it is contract creation transaction |
+| amount                   | string | body | **Rquired.** The ether send to the destination address (in wei)                             |
+| nonce                    | string | body | **Rquired.** The transaction count of this account                                          |
+| gas_limit                | string | body | **Rquired.** The estimated gas that transaction may consume                                 |
+| gas_price                | string | body | **Rquired.** The price of gas (in wei)                                                      |
+| max_fee_per_gas          | string | body | **Rquired.** Maximum fee per gas (in wei)                                                   |
+| max_priority_fee_per_gas | string | body | **Rquired.** Maximum tip per gas to the miner (in wei)                                      |
+| chainID                  | string | body | **Rquired.** The ID of etheruem network                                                     |
+| data                     | string | body | The bytecode of contract creation or function call. '0x' prefix is required.                |
 
 Code samples
 
 Legacy transaction:
 ```bash
-curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}/sign-tx" \
+curl --request POST "http://${ip}:${port}/v1/hdwallet/account/${address}/sign-tx" \
         --header "Authorization: Bearer ${token}" \
         --data-raw "{
             \"type\": \"0\",
@@ -146,7 +171,7 @@ curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}/sign-tx" 
 
 Dynamic fee transaction:
 ```bash
-curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}/sign-tx" \
+curl --request POST "http://${ip}:${port}/v1/hdwallet/account/${address}/sign-tx" \
         --header "Authorization: Bearer ${token}" \
         --data-raw "{
             \"type\": \"2\",
@@ -166,16 +191,16 @@ curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}/sign-tx" 
 Generate the signature for the input data
 
 Parameters
-| Name | Type   | In   | Description                                                                                |
-| ---- | ------ | ---- | ------------------------------------------------------------------------------------------ |
-| name | string | url  | **Rquired.** The path of secrets engines where plugin store the account info.              |
-| data | string | body | **Rquired.** The data to be signed. (without `\x19Ethereum Signed Message:\n` prefix ) |
+| Name    | Type   | In   | Description                                                                                |
+| ------- | ------ | ---- | ------------------------------------------------------------------------------------------ |
+| address | string | url  | **Rquired.** The path of secrets engines where plugin store the account info.              |
+| data    | string | body | **Rquired.** The data to be signed. (without `\x19Ethereum Signed Message:\n` prefix )     |
 
 
 Code samples
 
 ```bash
-curl --request POST "http://${ip}:${port}/v1/hdwallet/accounts/${name}/sign" \
+curl --request POST "http://${ip}:${port}/v1/hdwallet/account/${address}/sign" \
     --header "Authorization: Bearer ${token}" \
     --data-raw "{
         \"data\": \"hello world\"
