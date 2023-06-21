@@ -16,7 +16,7 @@ import (
 func SmartContractPaths(b *PluginBackend) []*framework.Path {
 	return []*framework.Path{
 		{
-			Pattern:         "smart_contract",
+			Pattern:         "smart-contract",
 			HelpSynopsis:    "Store smart contract",
 			HelpDescription: `Store smart contract`,
 			ExistenceCheck:  utils.PathExistenceCheck,
@@ -43,7 +43,7 @@ func SmartContractPaths(b *PluginBackend) []*framework.Path {
 		},
 		// TODO: For testing only. Should be removed before usage.
 		{
-			Pattern:         "smart_contract/" + framework.GenericNameRegex("uuid"),
+			Pattern:         "smart-contract/" + framework.GenericNameRegex("uuid"),
 			HelpSynopsis:    "Retrieve smart contract",
 			HelpDescription: `Retrieve smart contract`,
 			ExistenceCheck:  utils.PathExistenceCheck,
@@ -78,7 +78,7 @@ func (b *PluginBackend) storeSmartContract(ctx context.Context, req *logical.Req
 		return nil, errors.New("bytecode is not a string")
 	}
 
-	bytecode, err := base64.StdEncoding.DecodeString(bytecode_b64)
+	_, err := base64.StdEncoding.DecodeString(bytecode_b64)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (b *PluginBackend) storeSmartContract(ctx context.Context, req *logical.Req
 	smart_contract := &model.SmartContract {
 		Code:		code,
 		ABI:        abi,
-		Bytecode:   bytecode,
+		Bytecode:   bytecode_b64,
 	}
 
 	uuid := uuid.New().String()

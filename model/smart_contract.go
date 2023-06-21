@@ -12,7 +12,7 @@ import (
 type SmartContract struct {
 	Code       string `json:"code"`
 	ABI        string `json:"abi"`
-	Bytecode   []byte `json:"bytecode"`
+	Bytecode   string `json:"bytecode"`
 }
 
 // ReadSmartContract returns the account JSON
