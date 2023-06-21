@@ -6,6 +6,7 @@ require (
 	github.com/btcsuite/btcd v0.21.0-beta
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/ethereum/go-ethereum v1.10.4
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/vault/api v1.0.4
 	github.com/hashicorp/vault/sdk v0.1.13
 	github.com/miguelmota/go-ethereum-hdwallet v0.1.1
