@@ -15,11 +15,13 @@ func Backend(conf *logical.BackendConfig) (*PluginBackend, error) {
 		Paths: framework.PathAppend(
 			AccountPaths(&b),
 			WalletPaths(&b),
+			SmartContractPaths(&b),
 		),
 		PathsSpecial: &logical.Paths{
 			SealWrapStorage: []string{
 				"account/",
 				"wallet/",
+				"smart-contract/",
 			},
 		},
 		Secrets:     []*framework.Secret{},

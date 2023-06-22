@@ -3,6 +3,7 @@ package path
 import (
 	"context"
 	"errors"
+	"fmt"
 	"vault-hd-wallet/model"
 	"vault-hd-wallet/utils"
 	"encoding/base64"
@@ -90,7 +91,9 @@ func (b *PluginBackend) storeSmartContract(ctx context.Context, req *logical.Req
 	}
 
 	uuid := uuid.New().String()
-	entry, err := logical.StorageEntryJSON(uuid, smart_contract)
+
+	smartContractPath := fmt.Sprintf("smart_contract/%s", uuid)
+	entry, err := logical.StorageEntryJSON(smartContractPath, smart_contract)
 	if err != nil {
 		return nil, err
 	}
